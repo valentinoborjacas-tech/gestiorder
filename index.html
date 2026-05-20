@@ -300,7 +300,7 @@ async function cargarDatos() {
   try {
     // Leer clientes desde Google Sheets (público/CSV)
     const urlClientes = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=CLIENTES&range=A3:F200`;
-    const urlStock = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=STOCK_CONSULTA&range=A4:F500`;
+    const urlStock = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=INVENTARIO_UNICO&range=A2:B2000`;
 
     const [rCli, rStock] = await Promise.all([
       fetch(urlClientes).then(r => r.text()),
@@ -308,10 +308,10 @@ async function cargarDatos() {
     ]);
 
     clientes = parseGviz(rCli).filter(r => r[0]);
-    productos = parseGviz(rStock).filter(r => r[0] && r[0] !== 'COD. PRODUCTO');
+    productos = parseGviz(rStock).filter(r => r[0] && r[0].trim() !== '' && r[0].trim().toLowerCase() !== 'id');
 
     poblarClientes();
-    showToast(`${clientes.length} clientes · ${productos.length} productos cargados`, 'success');
+    showToast(`${clientes.length} clientes · ${productos.length} productos cargados`, 'success'); console.log('Productos cargados:', productos.length);
   } catch(e) {
     showToast('Error cargando datos. Verifica que el Sheet sea público.', 'error');
     // Cargar datos de ejemplo para demo
@@ -338,14 +338,14 @@ function cargarDemo() {
     ['CLI-014','RANSA','','CASCONI PLAST','',''],
   ];
   productos = [
-    ['SS-AZU-35-21','BOLSA AZUL 35 LTS','','1000','0','1000'],
-    ['SA-ROJ-140-33','BOLSA ROJO 140 LTS 72.6MC x100','','1800','0','1800'],
-    ['SA-ROJ-140-34','BOLSA ROJO 140 LTS 50.8MC x100','','1400','0','1400'],
-    ['SS-BLA-753-27','BOLSA BLANCO 75 LTS 3MC x100','','3100','0','3100'],
-    ['SS-NEG-220-36','BOLSA NEGRO 220 LTS','','3400','0','3400'],
-    ['AND-NEG-140N','BOLSA NEGRO 140 LTS 2MC x10','','7100','0','7100'],
-    ['SA-ROJ-26','BOLSA ROJO 26x40x72.6MC x100','','9000','0','9000'],
-    ['SS-TRA-200-38','BOLSA TRANSPARENTE 200 LTS 2MC','','1700','0','1700'],
+    ['SS-AZU-35-21','BOLSA AZUL 35 LTS'],
+    ['SA-ROJ-140-33','BOLSA ROJO 140 LTS 72.6MC x100'],
+    ['SA-ROJ-140-34','BOLSA ROJO 140 LTS 50.8MC x100'],
+    ['SS-BLA-753-27','BOLSA BLANCO 75 LTS 3MC x100'],
+    ['SS-NEG-220-36','BOLSA NEGRO 220 LTS'],
+    ['AND-NEG-140N','BOLSA NEGRO 140 LTS 2MC x10'],
+    ['SA-ROJ-26','BOLSA ROJO 26x40x72.6MC x100'],
+    ['SS-TRA-200-38','BOLSA TRANSPARENTE 200 LTS 2MC'],
   ];
   poblarClientes();
 }
@@ -389,18 +389,24 @@ function renderItems() {
     div.className = 'item-row';
     div.id = `item-${item.id}`;
 
-    const stockClass = item.stock === null ? '' : item.stock === 0 ? 'stock-none' : item.stock < (item.cantidad || 0) ? 'stock-warn' : 'stock-ok';
-    const stockText = item.stock === null ? '—' : item.stock.toLocaleString();
+    const stockClass = '';
+    const stockText  = '—';
 
     div.innerHTML = `
       <div class="search-wrap">
-        <input type="text" id="cod-${item.id}" placeholder="Código..." value="${item.codigo}"
+        <input type="text" id="cod-${item.id}" placeholder="Código (o descripción)..." value="${item.codigo}"
           oninput="onCodigoInput(${item.id}, this.value)"
-          onblur="hideDropdown(${item.id})" autocomplete="off">
+          onblur="onCodigoBlur(${item.id}, this.value)"
+          autocomplete="off" style="font-family:var(--mono);font-size:12px">
         <div class="dropdown" id="drop-${item.id}" style="display:none"></div>
       </div>
-      <div style="font-size:12px;color:var(--text2);padding:0 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" id="desc-${item.id}" title="${item.descripcion}">${item.descripcion || '<span style="color:var(--text3)">—</span>'}</div>
-      <div><span class="stock-pill ${stockClass}" id="stock-${item.id}">${stockText}</span></div>
+      <div style="padding:0 2px">
+        <input type="text" id="desc-${item.id}" placeholder="Descripción del producto..."
+          value="${item.descripcion}"
+          onchange="updateItemDesc(${item.id}, this.value)"
+          style="width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 8px;font-family:var(--font);font-size:12px;color:var(--text);background:${item.descripcion ? 'var(--surface)' : 'var(--surface2)'}">
+      </div>
+      <div style="display:none"><span class="stock-pill" id="stock-${item.id}">—</span></div>
       <input type="number" min="0" value="${item.cantidad||''}" placeholder="0"
         onchange="updateItem(${item.id},'cantidad',this.value)" style="text-align:right">
       <input type="number" min="0" value="${item.env1||''}" placeholder="0"
@@ -426,18 +432,53 @@ function onCodigoInput(id, val) {
     (p[1] && p[1].toLowerCase().includes(val.toLowerCase()))
   ).slice(0, 8);
 
-  if (!matches.length) { drop.style.display = 'none'; return; }
-
-  drop.innerHTML = matches.map(p => {
-    const stk = parseFloat(p[5]) || 0;
-    const stkColor = stk === 0 ? 'var(--red)' : stk < 500 ? 'var(--yellow)' : 'var(--green)';
-    return `<div class="dropdown-item" onmousedown="seleccionarProducto(${id},'${p[0]}','${(p[1]||'').replace(/'/g,"\\'")}',${stk})">
-      <div class="code">${p[0]}</div>
-      <div class="desc">${p[1] || ''}</div>
-      <div class="stk">Stock: <span style="color:${stkColor};font-family:var(--mono)">${stk.toLocaleString()}</span></div>
+  let html = matches.map(p => {
+    const codigo = p[0] || '';
+    const desc   = p[1] || '';
+    return `<div class="dropdown-item" onmousedown="seleccionarProducto(${id},'${codigo.replace(/'/g,"\\'")}','${desc.replace(/'/g,"\\'")}',null)">
+      <div class="code">${codigo}</div>
+      <div class="desc">${desc}</div>
     </div>`;
   }).join('');
+
+  // Opción siempre visible para usar el texto escrito como código libre
+  const valEsc = val.replace(/'/g, "\\'");
+  html += `<div class="dropdown-item" style="border-top:1px solid var(--border);background:var(--blue-light)"
+    onmousedown="usarCodigoLibre(${id},'${valEsc}')">
+    <div class="code" style="color:var(--accent2)">✏ Usar como código: "${val}"</div>
+    <div class="desc" style="color:var(--text3)">Sin stock registrado — ingresa la descripción manualmente</div>
+  </div>`;
+
+  drop.innerHTML = html;
   drop.style.display = 'block';
+}
+
+function usarCodigoLibre(id, val) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  item.codigo = val.trim().toUpperCase();
+  item.stock  = null;
+  renderItems();
+  setTimeout(() => {
+    const descEl = document.getElementById(`desc-${id}`);
+    if (descEl) { descEl.style.background = 'var(--surface)'; descEl.focus(); }
+  }, 50);
+}
+
+function onCodigoBlur(id, val) {
+  setTimeout(() => {
+    const drop = document.getElementById(`drop-${id}`);
+    if (drop) drop.style.display = 'none';
+    const item = items.find(i => i.id === id);
+    if (item && val.trim() && !item.codigo) {
+      item.codigo = val.trim().toUpperCase();
+      item.stock  = null;
+      setTimeout(() => {
+        const descEl = document.getElementById(`desc-${id}`);
+        if (descEl) { descEl.style.background = 'var(--surface)'; descEl.focus(); }
+      }, 50);
+    }
+  }, 150);
 }
 
 function hideDropdown(id) {
@@ -450,15 +491,24 @@ function hideDropdown(id) {
 function seleccionarProducto(id, codigo, descripcion, stock) {
   const item = items.find(i => i.id === id);
   if (!item) return;
-  item.codigo = codigo;
+  item.codigo      = codigo;
   item.descripcion = descripcion;
-  item.stock = stock;
+  item.stock       = stock; // null si viene de INVENTARIO_UNICO
   renderItems();
-  // Re-focus cantidad
+  // Re-focus en cantidad
   setTimeout(() => {
     const rows = document.querySelectorAll(`#item-${id} input[type=number]`);
     if (rows[0]) rows[0].focus();
   }, 50);
+}
+
+function updateItemDesc(id, val) {
+  const item = items.find(i => i.id === id);
+  if (item) {
+    item.descripcion = val.trim();
+    const descEl = document.getElementById(`desc-${id}`);
+    if (descEl) descEl.style.background = val.trim() ? 'var(--surface)' : 'var(--surface2)';
+  }
 }
 
 function updateItem(id, field, val) {
@@ -484,7 +534,7 @@ function eliminarItem(id) {
 function actualizarTotales() {
   const total = items.length;
   const unidades = items.reduce((s, i) => s + (i.cantidad || 0), 0);
-  const sinStock = items.filter(i => i.stock !== null && i.stock < (i.cantidad || 0)).length;
+  const sinStock = 0; // Stock no aplica — productos desde INVENTARIO_UNICO
 
   document.getElementById('itemCount').textContent = `${total} ítem${total !== 1 ? 's' : ''}`;
   document.getElementById('totalItems').textContent = total;
@@ -518,6 +568,17 @@ async function guardarOrden() {
   if (!empresa) { showToast('Selecciona la empresa', 'error'); return; }
   if (!fechaEntrega) { showToast('Ingresa la fecha de entrega', 'error'); return; }
   if (items.length === 0) { showToast('Agrega al menos un ítem', 'error'); return; }
+  // Capturar código/descripción del input si el usuario escribió sin seleccionar del dropdown
+  items.forEach(item => {
+    if (!item.codigo) {
+      const codEl = document.getElementById(`cod-${item.id}`);
+      if (codEl && codEl.value.trim()) item.codigo = codEl.value.trim().toUpperCase();
+    }
+    if (!item.descripcion) {
+      const descEl = document.getElementById(`desc-${item.id}`);
+      if (descEl && descEl.value.trim()) item.descripcion = descEl.value.trim();
+    }
+  });
   const itemsValidos = items.filter(i => i.codigo && i.cantidad > 0);
   if (itemsValidos.length === 0) { showToast('Los ítems necesitan código y cantidad', 'error'); return; }
 
