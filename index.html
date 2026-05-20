@@ -91,8 +91,8 @@ textarea { resize: vertical; min-height: 60px; }
 .btn-green:hover { background: rgba(0,184,148,0.22); }
 
 /* ITEMS TABLE */
-.items-header { display: grid; grid-template-columns: 140px 1fr 90px 80px 80px 80px 36px; gap: 8px; padding: 8px 10px; font-size: 11px; color: var(--text3); font-family: var(--mono); text-transform: uppercase; letter-spacing: .4px; border-bottom: 1px solid var(--border); }
-.item-row { display: grid; grid-template-columns: 140px 1fr 90px 80px 80px 80px 36px; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); align-items: center; transition: background .1s; }
+.items-header { display: grid; grid-template-columns: 140px 1fr 100px 80px 80px 36px; gap: 8px; padding: 8px 10px; font-size: 11px; color: var(--text3); font-family: var(--mono); text-transform: uppercase; letter-spacing: .4px; border-bottom: 1px solid var(--border); }
+.item-row { display: grid; grid-template-columns: 140px 1fr 100px 80px 80px 36px; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); align-items: center; transition: background .1s; }
 .item-row:hover { background: var(--surface2); }
 .item-row input { padding: 5px 8px; font-size: 12px; }
 .stock-pill { font-size: 11px; font-family: var(--mono); padding: 3px 7px; border-radius: 4px; text-align: center; }
@@ -235,10 +235,9 @@ textarea { resize: vertical; min-height: 60px; }
         <div class="items-header">
           <div>Código</div>
           <div>Descripción</div>
-          <div>Stock disp.</div>
-          <div>Cant. pedida</div>
-          <div>1ra entrega</div>
-          <div>2da entrega</div>
+          <div style="text-align:center">Cant. pedida *</div>
+          <div style="text-align:center">1ra entrega</div>
+          <div style="text-align:center">2da entrega</div>
           <div></div>
         </div>
         <div id="itemsContainer"></div>
@@ -406,7 +405,6 @@ function renderItems() {
           onchange="updateItemDesc(${item.id}, this.value)"
           style="width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 8px;font-family:var(--font);font-size:12px;color:var(--text);background:${item.descripcion ? 'var(--surface)' : 'var(--surface2)'}">
       </div>
-      <div style="display:none"><span class="stock-pill" id="stock-${item.id}">—</span></div>
       <input type="number" min="0" value="${item.cantidad||''}" placeholder="0"
         onchange="updateItem(${item.id},'cantidad',this.value)" style="text-align:right">
       <input type="number" min="0" value="${item.env1||''}" placeholder="0"
@@ -580,7 +578,9 @@ async function guardarOrden() {
     }
   });
   const itemsValidos = items.filter(i => i.codigo && i.cantidad > 0);
-  if (itemsValidos.length === 0) { showToast('Los ítems necesitan código y cantidad', 'error'); return; }
+  const itemsSinCantidad = items.filter(i => i.codigo && !(i.cantidad > 0));
+  if (itemsSinCantidad.length > 0) { showToast('Todos los ítems deben tener cantidad pedida', 'error'); return; }
+  if (itemsValidos.length === 0) { showToast('Agrega al menos un ítem con código y cantidad pedida', 'error'); return; }
 
   const btn = document.getElementById('btnGuardar');
   btn.disabled = true;
