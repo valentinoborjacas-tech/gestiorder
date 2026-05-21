@@ -351,6 +351,8 @@ function cargarDemo() {
 
 function poblarClientes() {
   const sel = document.getElementById('cliente');
+  // Limpiar opciones previas manteniendo el placeholder
+  sel.innerHTML = '<option value="">Seleccionar cliente...</option>';
   clientes.forEach(c => {
     const opt = document.createElement('option');
     opt.value = c[1];
@@ -643,17 +645,20 @@ async function guardarOrden() {
 }
 
 function resetForm() {
-  document.getElementById('cliente').value = '';
+  // Repoblar clientes (limpia el select y lo vuelve a llenar desde memoria)
+  poblarClientes();
+  document.getElementById('cliente').value    = '';
   document.getElementById('destinatario').value = '';
-  document.getElementById('empresa').value = '';
+  document.getElementById('empresa').value    = '';
   document.getElementById('fechaEntrega').value = '';
-  document.getElementById('notas').value = '';
-  document.getElementById('origen').value = 'CORREO';
-  items = [];
+  document.getElementById('notas').value      = '';
+  document.getElementById('origen').value     = 'CORREO';
+  items      = [];
   nextItemId = 1;
   generarNumOrden();
   setFechaHoy();
   renderItems();
+  // productos[] sigue en memoria — el autocomplete sigue funcionando
 }
 
 // ─── TOAST ────────────────────────────────────────────────
