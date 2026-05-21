@@ -423,6 +423,9 @@ function renderItems() {
   mostrarEmptyMsg();
 }
 
+// Caché para evitar bugs con IDs entre órdenes
+let _dropCache = {};
+
 function onCodigoInput(id, val) {
   const drop = document.getElementById(`drop-${id}`);
   if (!val || val.length < 2) { drop.style.display = 'none'; return; }
@@ -430,26 +433,32 @@ function onCodigoInput(id, val) {
   const matches = productos.filter(p =>
     p[0].toLowerCase().includes(val.toLowerCase()) ||
     (p[1] && p[1].toLowerCase().includes(val.toLowerCase()))
-  ).slice(0, 8);
+  ).slice(0, 10);
 
-  let html = matches.map(p => {
-    const codigo = p[0] || '';
-    const desc   = p[1] || '';
-    return `<div class="dropdown-item" onmousedown="seleccionarProducto(${id},'${codigo.replace(/'/g,"\\'")}','${desc.replace(/'/g,"\\'")}',null)">
-      <div class="code">${codigo}</div>
-      <div class="desc">${desc}</div>
-    </div>`;
-  }).join('');
+  drop.innerHTML = '';
 
-  // Opción siempre visible para usar el texto escrito como código libre
-  const valEsc = val.replace(/'/g, "\\'");
-  html += `<div class="dropdown-item" style="border-top:1px solid var(--border);background:var(--blue-light)"
-    onmousedown="usarCodigoLibre(${id},'${valEsc}')">
-    <div class="code" style="color:var(--accent2)">✏ Usar como código: "${val}"</div>
-    <div class="desc" style="color:var(--text3)">Sin stock registrado — ingresa la descripción manualmente</div>
-  </div>`;
+  matches.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'dropdown-item';
+    div.innerHTML = `<div class="code">${p[0]}</div><div class="desc">${p[1] || ''}</div>`;
+    div.addEventListener('mousedown', e => {
+      e.preventDefault();
+      seleccionarProducto(id, p[0], p[1] || '', null);
+    });
+    drop.appendChild(div);
+  });
 
-  drop.innerHTML = html;
+  // Opción de código libre al final
+  const libreDiv = document.createElement('div');
+  libreDiv.className = 'dropdown-item';
+  libreDiv.style.cssText = 'border-top:1px solid var(--border);background:var(--blue-light)';
+  libreDiv.innerHTML = `<div class="code" style="color:var(--accent2)">✏ Usar como código: "${val}"</div><div class="desc" style="color:var(--text3)">Ingresa la descripción manualmente</div>`;
+  libreDiv.addEventListener('mousedown', e => {
+    e.preventDefault();
+    usarCodigoLibre(id, val);
+  });
+  drop.appendChild(libreDiv);
+
   drop.style.display = 'block';
 }
 
@@ -645,20 +654,23 @@ async function guardarOrden() {
 }
 
 function resetForm() {
-  // Repoblar clientes (limpia el select y lo vuelve a llenar desde memoria)
-  poblarClientes();
-  document.getElementById('cliente').value    = '';
-  document.getElementById('destinatario').value = '';
-  document.getElementById('empresa').value    = '';
-  document.getElementById('fechaEntrega').value = '';
-  document.getElementById('notas').value      = '';
-  document.getElementById('origen').value     = 'CORREO';
+  // Limpiar completamente el estado para la siguiente orden
   items      = [];
   nextItemId = 1;
+  // Repoblar clientes desde memoria (limpia el select correctamente)
+  poblarClientes();
+  document.getElementById('cliente').value      = '';
+  document.getElementById('destinatario').value = '';
+  document.getElementById('empresa').value      = '';
+  document.getElementById('fechaEntrega').value = '';
+  document.getElementById('notas').value        = '';
+  document.getElementById('origen').value       = 'CORREO';
+  // Limpiar cualquier dropdown abierto
+  document.querySelectorAll('.dropdown').forEach(d => { d.innerHTML = ''; d.style.display = 'none'; });
   generarNumOrden();
   setFechaHoy();
   renderItems();
-  // productos[] sigue en memoria — el autocomplete sigue funcionando
+  // productos[] sigue en memoria — autocomplete funciona sin recargar
 }
 
 // ─── TOAST ────────────────────────────────────────────────
