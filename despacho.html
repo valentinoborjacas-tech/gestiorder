@@ -120,6 +120,14 @@ input::placeholder{color:var(--text3)}
 .toast.error{border-left:3px solid var(--red)}
 .toast.loading{border-left:3px solid var(--accent)}
 
+.chofer-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:16px}
+.chofer-select-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+.whatsapp-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:var(--radius-sm);border:none;background:#25D366;color:#fff;font-size:14px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s;text-decoration:none}
+.whatsapp-btn:hover{background:#1ebe5d}
+.despachar-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);border:none;background:#E08A00;color:#fff;font-size:13px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s}
+.despachar-btn:hover{background:#c87a00}
+.token-box{background:var(--blue-light);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px 14px;margin-top:12px;display:none}
+.token-box.show{display:block}
 /* ── PDF PRINT STYLES ───────────────────────────────────── */
 @media print {
   body{background:#fff;color:#000;font-family:Arial,sans-serif;font-size:12px}
@@ -216,12 +224,22 @@ input::placeholder{color:var(--text3)}
           <div class="card-title">Datos del transporte</div>
           <div class="form-grid">
             <div class="form-group">
-              <label>Transportista *</label>
-              <input type="text" id="transportista" placeholder="Nombre de la empresa o persona">
+              <label>Chofer *</label>
+              <select id="choferSel" onchange="onChoferChange()">
+                <option value="">— Seleccionar chofer —</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Teléfono del chofer *</label>
+              <input type="text" id="choferTel" placeholder="Ej: 999888777" maxlength="12">
             </div>
             <div class="form-group">
               <label>Placa de la unidad *</label>
               <input type="text" id="placa" placeholder="Ej: ABC-123" style="text-transform:uppercase">
+            </div>
+            <div class="form-group">
+              <label>Transportista / Empresa</label>
+              <input type="text" id="transportista" placeholder="Nombre empresa o persona">
             </div>
             <div class="form-group">
               <label>Fecha de despacho</label>
@@ -255,7 +273,7 @@ input::placeholder{color:var(--text3)}
         <div class="card" id="previewCard">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
             <div class="card-title" style="margin-bottom:0">Vista previa de la guía</div>
-            <div style="display:flex;gap:8px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-sm" onclick="irPaso3()">← Editar</button>
               <button class="btn btn-sm btn-ghost" onclick="imprimirOrdenCompleta()">
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="1" width="10" height="14" rx="1"/><line x1="5" y1="5" x2="11" y2="5"/><line x1="5" y1="8" x2="11" y2="8"/><line x1="5" y1="11" x2="9" y2="11"/></svg>
@@ -269,10 +287,31 @@ input::placeholder{color:var(--text3)}
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
                 Cerrar orden
               </button>
-              <button class="btn btn-sm" onclick="pedirConfirmarEntrega()" style="background:#0036B3;border-color:#0036B3;color:#fff;font-weight:600">
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13,4 6,12 3,9"/></svg>
-                Confirmar entrega
+              <button class="despachar-btn" id="btnDespachar" onclick="pedirDespachar()">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="6" width="10" height="8" rx="1"/><path d="M11 9h2l2 3v2h-4"/><circle cx="4" cy="14" r="1.5"/><circle cx="13" cy="14" r="1.5"/></svg>
+                Despachar pedido
               </button>
+            </div>
+            <!-- Panel WhatsApp — aparece tras despachar -->
+            <div class="token-box" id="whatsappPanel">
+              <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">
+                📦 Pedido despachado — Envía el link de confirmación al chofer
+              </div>
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <div style="flex:1;min-width:200px">
+                  <label style="font-size:11px;color:var(--text3);font-weight:500">Teléfono del chofer</label>
+                  <input type="text" id="telChoferWsp" style="margin-top:4px" placeholder="51999888777">
+                </div>
+                <div style="padding-top:18px">
+                  <a id="btnWhatsapp" href="#" target="_blank" class="whatsapp-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    Enviar por WhatsApp
+                  </a>
+                </div>
+              </div>
+              <div style="font-size:11px;color:var(--text3);margin-top:8px">
+                El link expira en 24 horas. El chofer puede confirmar la entrega o indicar si fue parcial.
+              </div>
             </div>
           </div>
           <div id="previewContent"></div>
@@ -291,26 +330,44 @@ input::placeholder{color:var(--text3)}
 const SHEET_ID   = '1lc-HSFfaUKF0c7qVQVoqshhzcnlEsjzX9HTPo4EFSNs';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwgB9w3GbjRb2Dx-6uRwBuVqeokTFKbLboUjwbpujXlrXgvGMnVmlrjhNnmY5bHHJoGWQ/exec';
 
-let ordenes = [];
-let itemsPorOrden = {};
+let ordenes      = [];
+let itemsPorOrden= {};
 let ordenSeleccionada = null;
-let guiaNum = '';
+let guiaNum      = '';
+let choferes     = [];
+let guiaToken    = '';
+let guiaGuardada = null; // guía ya registrada en Sheet
 
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('fechaDespacho').value = new Date().toISOString().split('T')[0];
-  guiaNum = 'GR-' + Date.now().toString().slice(-5);
+  guiaNum   = 'GR-' + Date.now().toString().slice(-5);
+  guiaToken = generarToken();
   await cargarDatos();
 });
+
+function generarToken() {
+  const arr = new Uint8Array(12);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b => b.toString(16).padStart(2,'0')).join('');
+}
 
 async function cargarDatos() {
   showToast('Cargando órdenes...', 'loading');
   try {
-    const urlOrd   = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=ORDENES&range=A3:J500`;
-    const urlItems = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=ORDEN_ITEMS&range=A3:J2000`;
-    const [rOrd, rItems] = await Promise.all([
+    const urlOrd     = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=ORDENES&range=A3:J500`;
+    const urlItems   = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=ORDEN_ITEMS&range=A3:J2000`;
+    const urlChoferes= `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=CHOFERES&range=A2:E200`;
+    const [rOrd, rItems, rChof] = await Promise.all([
       fetch(urlOrd).then(r => r.text()),
-      fetch(urlItems).then(r => r.text())
+      fetch(urlItems).then(r => r.text()),
+      fetch(urlChoferes).then(r => r.text()),
     ]);
+
+    choferes = parseGviz(rChof).filter(r => r[0] && r[4]?.trim().toUpperCase() !== 'INACTIVO').map(r => ({
+      id: r[0]?.trim(), nombre: r[1]?.trim(), telefono: r[2]?.trim(),
+      placa: r[3]?.trim(), estado: r[4]?.trim() || 'ACTIVO',
+    }));
+    poblarChoferes();
 
     ordenes = parseGviz(rOrd).filter(r => r[0] && r[6] !== 'CANCELADO').map(r => ({
       numero: r[0]?.trim(), fechaOrden: r[1]?.trim(), cliente: r[2]?.trim(),
@@ -334,6 +391,28 @@ async function cargarDatos() {
     showToast(`${ordenes.length} órdenes cargadas`, 'success');
   } catch(e) {
     showToast('Error cargando datos', 'error');
+  }
+}
+
+function poblarChoferes() {
+  const sel = document.getElementById('choferSel');
+  sel.innerHTML = '<option value="">— Seleccionar chofer —</option>';
+  choferes.forEach(ch => {
+    const opt = document.createElement('option');
+    opt.value = ch.id;
+    opt.textContent = ch.nombre;
+    opt.dataset.tel   = ch.telefono || '';
+    opt.dataset.placa = ch.placa    || '';
+    sel.appendChild(opt);
+  });
+}
+
+function onChoferChange() {
+  const sel = document.getElementById('choferSel');
+  const opt = sel.options[sel.selectedIndex];
+  if (opt && opt.value) {
+    document.getElementById('choferTel').value = opt.dataset.tel   || '';
+    document.getElementById('placa').value     = opt.dataset.placa || '';
   }
 }
 
@@ -478,6 +557,12 @@ function irPaso3() {
 
 // ── PASO 4 ────────────────────────────────────────────────
 function irPaso4() {
+  // Resetear panel whatsapp y botón despachar para nueva guía
+  document.getElementById('whatsappPanel').classList.remove('show');
+  const btnD = document.getElementById('btnDespachar');
+  btnD.disabled = false; btnD.style.opacity = '1'; btnD.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="6" width="10" height="8" rx="1"/><path d="M11 9h2l2 3v2h-4"/><circle cx="4" cy="14" r="1.5"/><circle cx="13" cy="14" r="1.5"/></svg> Despachar pedido';
+  guiaToken = generarToken();
+  guiaGuardada = null;
   const transp = document.getElementById('transportista').value.trim();
   const placa  = document.getElementById('placa').value.trim();
   if (!transp) { showToast('Ingresa el transportista', 'error'); return; }
@@ -561,42 +646,49 @@ function renderPreview() {
 }
 
 // ── GUARDAR Y GENERAR PDF ─────────────────────────────────
-function pedirConfirmarEntrega() {
-  const o = ordenSeleccionada;
-  const items = getItemsSeleccionados();
-  const nroEnt = document.getElementById('nroEntrega').value;
-  const totalU = items.reduce((s,i) => s + i.aCDespachar, 0);
-  const transp = document.getElementById('transportista').value.trim();
-  const placa  = document.getElementById('placa').value.trim().toUpperCase();
 
-  const conf = confirm(
-    `¿Confirmar la entrega?\n\n` +
-    `Orden: ${o.numero}\n` +
-    `Cliente: ${o.cliente}${o.destinatario?' → '+o.destinatario:''}\n` +
-    `Tipo: ${nroEnt}\n` +
-    `Ítems: ${items.length} productos · ${totalU.toLocaleString()} unidades\n` +
-    `Transportista: ${transp} · Placa: ${placa}\n\n` +
-    `Esta acción registrará la entrega y actualizará el estado de la orden.`
-  );
-  if (!conf) return;
-  generarGuia();
+
+
+
+
+// ── DESPACHAR (pre-confirmación) ─────────────────────────
+function pedirDespachar() {
+  if (!ordenSeleccionada) return;
+  const items = getItemsSeleccionados();
+  if (!items.length) { showToast('No hay ítems seleccionados', 'error'); return; }
+  const tel   = document.getElementById('choferTel').value.trim();
+  const placa = document.getElementById('placa').value.trim();
+  if (!tel)   { showToast('Ingresa el teléfono del chofer', 'error'); return; }
+  if (!placa) { showToast('Ingresa la placa de la unidad', 'error'); return; }
+  if (!confirm(`¿Despachar pedido de ${ordenSeleccionada.cliente}?\n\nEl chofer recibirá un link para confirmar la entrega.`)) return;
+  despacharGuia();
 }
 
-async function generarGuia() {
-  const o = ordenSeleccionada;
+async function despacharGuia() {
+  const o     = ordenSeleccionada;
   const items = getItemsSeleccionados();
-  const transp   = document.getElementById('transportista').value.trim();
+  const sel   = document.getElementById('choferSel');
+  const chofer= sel.options[sel.selectedIndex]?.textContent || '';
+  const tel      = document.getElementById('choferTel').value.trim();
+  const transp   = document.getElementById('transportista').value.trim() || chofer;
   const placa    = document.getElementById('placa').value.trim().toUpperCase();
   const fecha    = document.getElementById('fechaDespacho').value;
   const nroEnt   = document.getElementById('nroEntrega').value;
   const obs      = document.getElementById('obsDespacho').value;
-  const fechaFmt = fecha ? new Date(fecha+'T00:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit',year:'numeric'}) : '';
+  const fechaFmt = fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString('es-PE', {day:'2-digit',month:'2-digit',year:'numeric'}) : '';
 
-  showToast('Guardando guía...', 'loading');
+  showToast('Despachando pedido...', 'loading');
 
   const payload = {
-    accion: 'nuevaGuia',
-    guia: { numero: guiaNum, orden: o.numero, cliente: o.cliente+( o.destinatario?' → '+o.destinatario:''), nroEntrega: nroEnt, fechaDespacho: fechaFmt, transportista: transp, placa, observaciones: obs },
+    accion: 'despacharGuia',
+    guia: {
+      numero: guiaNum, orden: o.numero,
+      cliente: o.cliente + (o.destinatario ? ' → ' + o.destinatario : ''),
+      nroEntrega: nroEnt, fechaDespacho: fechaFmt,
+      transportista: transp, chofer, placa,
+      telChofer: tel, token: guiaToken,
+      observaciones: obs,
+    },
     items: items.map(i => ({ orden: o.numero, codigo: i.codigo, nroEntrega: nroEnt, cantidad: i.aCDespachar }))
   };
 
@@ -604,10 +696,39 @@ async function generarGuia() {
     const res  = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || 'Error desconocido');
-    showToast('✓ Entrega confirmada y registrada', 'success');
-    setTimeout(() => { ordenSeleccionada = null; irPaso1(); cargarDatos(); }, 1200);
+
+    guiaGuardada = { ...payload.guia, items };
+    showToast('✓ Pedido despachado — envía el link al chofer', 'success');
+
+    // Mostrar panel WhatsApp
+    const panel = document.getElementById('whatsappPanel');
+    panel.classList.add('show');
+
+    // Construir número y link
+    const telNum = tel.replace(/\D/g, '');
+    const telWsp = telNum.startsWith('51') ? telNum : '51' + telNum;
+    document.getElementById('telChoferWsp').value = telWsp;
+
+    const baseUrl  = window.location.href.replace('despacho.html', '');
+    const linkConf = baseUrl + 'confirmar.html?token=' + guiaToken + '&guia=' + guiaNum;
+    const msgWsp   = encodeURIComponent(
+      '📦 *GestiOrder — Pedido despachado*\n' +
+      'Orden: *' + o.numero + '*\n' +
+      'Cliente: *' + o.cliente + (o.destinatario ? ' → ' + o.destinatario : '') + '*\n' +
+      'Guía: *' + guiaNum + '* — ' + nroEnt + '\n' +
+      'Placa: *' + placa + '*\n\n' +
+      'Confirma la entrega aquí (link válido 24h):\n' + linkConf
+    );
+    document.getElementById('btnWhatsapp').href = 'https://wa.me/' + telWsp + '?text=' + msgWsp;
+
+    // Deshabilitar botón despachar
+    const btnD = document.getElementById('btnDespachar');
+    btnD.disabled = true;
+    btnD.style.opacity = '0.5';
+    btnD.innerHTML = '✓ Despachado';
+
   } catch(e) {
-    showToast('Error al guardar: ' + e.message, 'error');
+    showToast('Error: ' + e.message, 'error');
   }
 }
 
