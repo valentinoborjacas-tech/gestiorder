@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>GestiOrder — Confirmar entrega</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --azul:#0036B3;--verde:#5DCD00;--rojo:#D0310A;--amarillo:#E08A00;
+  --bg:#F4F6FB;--surface:#FFFFFF;--border:#D0D7E8;
+  --text:#1A1F36;--text2:#575756;--text3:#8A92A8;
+  --font:'Poppins',sans-serif;--radius:12px;--radius-sm:8px;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;padding:0}
+.header{background:var(--azul);color:#fff;padding:16px 20px;display:flex;align-items:center;gap:12px}
+.header-logo{font-size:18px;font-weight:700;letter-spacing:-.3px}
+.header-sub{font-size:12px;opacity:.7;margin-top:2px}
+.container{max-width:480px;margin:0 auto;padding:20px 16px 40px}
+
+/* ESTADOS */
+.state-loading,.state-error,.state-expired,.state-done{display:none;text-align:center;padding:40px 20px}
+.state-loading.show,.state-error.show,.state-expired.show,.state-done.show{display:block}
+.state-icon{font-size:56px;margin-bottom:16px}
+.state-title{font-size:20px;font-weight:700;margin-bottom:8px}
+.state-sub{font-size:14px;color:var(--text2);line-height:1.5}
+
+/* INFO CARD */
+.info-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px}
+.info-header{background:var(--azul);color:#fff;padding:14px 16px}
+.info-header-guia{font-size:11px;opacity:.7;font-family:monospace;margin-bottom:3px}
+.info-header-cliente{font-size:16px;font-weight:600}
+.info-body{padding:14px 16px}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px}
+.info-row:last-child{border-bottom:none}
+.info-label{color:var(--text3);font-size:12px}
+.info-val{font-weight:500;text-align:right}
+
+/* ITEMS */
+.items-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px}
+.items-title{padding:12px 16px;font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);font-family:monospace}
+.item-row{display:grid;grid-template-columns:1fr 80px 90px;gap:8px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)}
+.item-row:last-child{border-bottom:none}
+.item-code{font-family:monospace;font-size:11px;color:var(--azul)}
+.item-desc{font-size:13px;font-weight:500;margin-top:2px}
+.item-pedido{font-size:12px;color:var(--text3);text-align:center}
+.item-pedido strong{display:block;font-size:15px;color:var(--text);font-family:monospace}
+.item-input-wrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+.item-input-label{font-size:10px;color:var(--verde);font-weight:600;text-transform:uppercase}
+.item-input{width:100%;border:2px solid var(--verde);border-radius:var(--radius-sm);padding:8px;font-size:16px;font-weight:700;text-align:center;font-family:monospace;color:var(--text);background:#fff}
+.item-input:focus{outline:none;border-color:var(--azul)}
+.item-input.parcial{border-color:var(--amarillo)}
+.item-input.cero{border-color:var(--rojo)}
+
+/* NOTA */
+.nota-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px}
+.nota-label{font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;font-family:monospace}
+.nota-input{width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-family:var(--font);font-size:13px;color:var(--text);resize:none;min-height:72px}
+.nota-input:focus{outline:none;border-color:var(--azul)}
+
+/* BOTÓN CONFIRMAR */
+.confirm-btn{width:100%;padding:16px;border-radius:var(--radius);border:none;font-family:var(--font);font-size:16px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:10px}
+.confirm-btn.full{background:var(--verde);color:#fff}
+.confirm-btn.full:hover{background:#4ab800}
+.confirm-btn.parcial{background:var(--amarillo);color:#fff}
+.confirm-btn.parcial:hover{background:#c87a00}
+.confirm-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* RESUMEN ESTADO */
+.resumen-estado{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--text2)}
+.resumen-estado strong{color:var(--text)}
+
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--azul);border-radius:50%;animation:spin .6s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-logo">GestiOrder</div>
+    <div class="header-sub">Confirmación de entrega</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- LOADING -->
+  <div class="state-loading show" id="stateLoading">
+    <div class="spinner"></div>
+    <div class="state-title">Cargando pedido...</div>
+    <div class="state-sub">Por favor espera un momento</div>
+  </div>
+
+  <!-- ERROR -->
+  <div class="state-error" id="stateError">
+    <div class="state-icon">❌</div>
+    <div class="state-title">Link inválido</div>
+    <div class="state-sub">Este link no corresponde a ningún pedido. Contacta al encargado de despacho.</div>
+  </div>
+
+  <!-- EXPIRADO -->
+  <div class="state-expired" id="stateExpired">
+    <div class="state-icon">⏰</div>
+    <div class="state-title">Link expirado</div>
+    <div class="state-sub">Este link tenía una validez de 24 horas y ya venció. Solicita uno nuevo al encargado.</div>
+  </div>
+
+  <!-- YA CONFIRMADO -->
+  <div class="state-done" id="stateDone">
+    <div class="state-icon">✅</div>
+    <div class="state-title">¡Entrega ya confirmada!</div>
+    <div class="state-sub">Esta entrega ya fue registrada anteriormente. No es necesario hacer nada más.</div>
+  </div>
+
+  <!-- FORMULARIO PRINCIPAL -->
+  <div id="mainForm" style="display:none">
+
+    <!-- Info de la guía -->
+    <div class="info-card">
+      <div class="info-header">
+        <div class="info-header-guia" id="infoGuiaNro">—</div>
+        <div class="info-header-cliente" id="infoCliente">—</div>
+      </div>
+      <div class="info-body">
+        <div class="info-row">
+          <span class="info-label">Orden</span>
+          <span class="info-val" id="infoOrden">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Tipo de entrega</span>
+          <span class="info-val" id="infoTipo">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Fecha despacho</span>
+          <span class="info-val" id="infoFecha">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Transportista</span>
+          <span class="info-val" id="infoTransp">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Placa</span>
+          <span class="info-val" id="infoPlaca" style="font-family:monospace;font-size:14px;font-weight:700">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Items -->
+    <div class="items-card">
+      <div class="items-title">Productos — Confirma cantidad recibida</div>
+      <div id="itemsContainer"></div>
+    </div>
+
+    <!-- Resumen estado -->
+    <div class="resumen-estado" id="resumenEstado">Completa las cantidades recibidas para continuar</div>
+
+    <!-- Nota -->
+    <div class="nota-card">
+      <div class="nota-label">Observaciones (opcional)</div>
+      <textarea class="nota-input" id="notaChofer" placeholder="Ej: El cliente no recibió 200 bolsas porque no había espacio en almacén..."></textarea>
+    </div>
+
+    <!-- Botón confirmar -->
+    <button class="confirm-btn full" id="btnConfirmar" onclick="confirmarEntrega()" disabled>
+      <span id="btnConfirmarTxt">Completa las cantidades</span>
+    </button>
+
+  </div>
+</div>
+
+<script>
+const SHEET_ID   = '1lc-HSFfaUKF0c7qVQVoqshhzcnlEsjzX9HTPo4EFSNs';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwgB9w3GbjRb2Dx-6uRwBuVqeokTFKbLboUjwbpujXlrXgvGMnVmlrjhNnmY5bHHJoGWQ/exec';
+const EXPIRY_HRS = 24;
+
+let guiaData  = null;
+let itemsData = [];
+
+// ── INIT ─────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const token  = params.get('token');
+  const guia   = params.get('guia');
+  if (!token || !guia) { showState('error'); return; }
+  cargarGuia(token, guia);
+});
+
+function showState(state) {
+  ['loading','error','expired','done'].forEach(s => {
+    document.getElementById('state' + s.charAt(0).toUpperCase() + s.slice(1)).classList.remove('show');
+  });
+  document.getElementById('mainForm').style.display = 'none';
+  if (state === 'form') {
+    document.getElementById('mainForm').style.display = 'block';
+  } else {
+    document.getElementById('state' + state.charAt(0).toUpperCase() + state.slice(1)).classList.add('show');
+  }
+}
+
+// ── CARGAR GUÍA DESDE SHEET ───────────────────────────────
+async function cargarGuia(token, guiaNro) {
+  try {
+    const urlGuias = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=GUIAS_REMISION&range=A2:N500`;
+    const raw = await fetch(urlGuias).then(r => r.text());
+    const rows = parseGviz(raw);
+
+    // Buscar por número de guía
+    // Columnas: 0=Numero,1=Orden,2=Cliente,3=NroEntrega,4=FechaDespacho,
+    //           5=Transportista,6=Placa,7=Obs,8=Token,9=TokenExp,10=Estado,
+    //           11=Chofer,12=TelChofer,13=ItemsJSON
+    const row = rows.find(r => r[0]?.trim() === guiaNro);
+    if (!row) { showState('error'); return; }
+
+    // Verificar token
+    if (row[8]?.trim() !== token) { showState('error'); return; }
+
+    // Verificar expiración
+    const exp = row[9]?.trim();
+    if (exp) {
+      const expDate = new Date(exp);
+      if (!isNaN(expDate) && new Date() > expDate) { showState('expired'); return; }
+    }
+
+    // Verificar si ya fue confirmada
+    const estado = row[10]?.trim();
+    if (estado === 'ENTREGADO' || estado === 'PARCIAL ENTREGADO') { showState('done'); return; }
+
+    // Parsear items
+    let items = [];
+    try { items = JSON.parse(row[13] || '[]'); } catch(e) {}
+
+    guiaData = {
+      numero:       row[0]?.trim(),
+      orden:        row[1]?.trim(),
+      cliente:      row[2]?.trim(),
+      nroEntrega:   row[3]?.trim(),
+      fechaDespacho:row[4]?.trim(),
+      transportista:row[5]?.trim(),
+      placa:        row[6]?.trim(),
+      token:        row[8]?.trim(),
+    };
+    itemsData = items;
+
+    renderForm();
+    showState('form');
+
+  } catch(e) {
+    console.error(e);
+    showState('error');
+  }
+}
+
+// ── RENDER FORMULARIO ─────────────────────────────────────
+function renderForm() {
+  const g = guiaData;
+  document.getElementById('infoGuiaNro').textContent  = 'Guía ' + g.numero;
+  document.getElementById('infoCliente').textContent  = g.cliente;
+  document.getElementById('infoOrden').textContent    = g.orden;
+  document.getElementById('infoTipo').textContent     = g.nroEntrega;
+  document.getElementById('infoFecha').textContent    = g.fechaDespacho || '—';
+  document.getElementById('infoTransp').textContent   = g.transportista || '—';
+  document.getElementById('infoPlaca').textContent    = g.placa || '—';
+
+  const container = document.getElementById('itemsContainer');
+  container.innerHTML = '';
+
+  itemsData.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.innerHTML = `
+      <div>
+        <div class="item-code">${item.codigo || '—'}</div>
+        <div class="item-desc">${item.descripcion || '—'}</div>
+      </div>
+      <div class="item-pedido">
+        <span style="font-size:10px;color:var(--text3)">Pedido</span>
+        <strong>${Number(item.cantidad).toLocaleString()}</strong>
+      </div>
+      <div class="item-input-wrap">
+        <span class="item-input-label">Recibido</span>
+        <input class="item-input" type="number" id="recv-${idx}"
+          value="${item.cantidad}" min="0" max="${item.cantidad}"
+          inputmode="numeric" onchange="onInputChange(${idx}, this)"
+          oninput="onInputChange(${idx}, this)">
+      </div>`;
+    container.appendChild(div);
+  });
+
+  actualizarResumen();
+}
+
+function onInputChange(idx, input) {
+  const max = itemsData[idx].cantidad;
+  const val = Math.max(0, Math.min(parseFloat(input.value) || 0, max));
+  input.value = val;
+  if (val === 0)   input.className = 'item-input cero';
+  else if (val < max) input.className = 'item-input parcial';
+  else               input.className = 'item-input';
+  actualizarResumen();
+}
+
+function actualizarResumen() {
+  let totalPedido = 0, totalRecibido = 0, esCompleto = true, todosLlenos = true;
+  itemsData.forEach((item, idx) => {
+    const inp = document.getElementById(`recv-${idx}`);
+    const val = parseFloat(inp?.value) || 0;
+    totalPedido   += Number(item.cantidad);
+    totalRecibido += val;
+    if (val < Number(item.cantidad)) esCompleto = false;
+    if (inp && inp.value === '') todosLlenos = false;
+  });
+
+  const btn     = document.getElementById('btnConfirmar');
+  const btnTxt  = document.getElementById('btnConfirmarTxt');
+  const resumen = document.getElementById('resumenEstado');
+
+  if (!todosLlenos) {
+    btn.disabled = true;
+    btn.className = 'confirm-btn full';
+    btnTxt.textContent = 'Completa las cantidades';
+    resumen.innerHTML = 'Completa las cantidades recibidas para continuar';
+    return;
+  }
+
+  btn.disabled = false;
+
+  if (esCompleto) {
+    btn.className = 'confirm-btn full';
+    btnTxt.textContent = '✓ Confirmar entrega completa';
+    resumen.innerHTML = `<strong>Entrega completa:</strong> ${totalRecibido.toLocaleString()} unidades recibidas de ${totalPedido.toLocaleString()}`;
+  } else {
+    btn.className = 'confirm-btn parcial';
+    btnTxt.textContent = '⚠ Confirmar entrega parcial';
+    resumen.innerHTML = `<strong>Entrega parcial:</strong> ${totalRecibido.toLocaleString()} de ${totalPedido.toLocaleString()} unidades recibidas`;
+  }
+}
+
+// ── CONFIRMAR ENTREGA ─────────────────────────────────────
+async function confirmarEntrega() {
+  const btn = document.getElementById('btnConfirmar');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;margin:0"></div>';
+
+  const recibidos = itemsData.map((item, idx) => ({
+    codigo:     item.codigo,
+    descripcion:item.descripcion,
+    orden:      item.orden || guiaData.orden,
+    nroEntrega: guiaData.nroEntrega,
+    pedido:     Number(item.cantidad),
+    recibido:   parseFloat(document.getElementById(`recv-${idx}`).value) || 0,
+  }));
+
+  const totalPedido   = recibidos.reduce((s,i) => s + i.pedido, 0);
+  const totalRecibido = recibidos.reduce((s,i) => s + i.recibido, 0);
+  const esCompleto    = totalRecibido >= totalPedido;
+
+  const payload = {
+    accion: 'confirmarEntregaChofer',
+    token:  guiaData.token,
+    guia:   guiaData.numero,
+    esCompleto,
+    nota:   document.getElementById('notaChofer').value.trim(),
+    items:  recibidos,
+  };
+
+  try {
+    const res  = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Error desconocido');
+
+    // Mostrar resultado
+    document.getElementById('mainForm').style.display = 'none';
+    const done = document.getElementById('stateDone');
+    done.querySelector('.state-icon').textContent  = esCompleto ? '✅' : '⚠️';
+    done.querySelector('.state-title').textContent = esCompleto ? '¡Entrega confirmada!' : 'Entrega parcial registrada';
+    done.querySelector('.state-sub').textContent   = esCompleto
+      ? 'Gracias. La entrega fue registrada como completa.'
+      : `Se registraron ${totalRecibido.toLocaleString()} de ${totalPedido.toLocaleString()} unidades. El encargado fue notificado.`;
+    done.classList.add('show');
+
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<span id="btnConfirmarTxt">Error — intenta nuevamente</span>';
+    alert('Error al confirmar: ' + e.message);
+  }
+}
+
+// ── PARSE GVIZ ────────────────────────────────────────────
+function parseGviz(raw) {
+  try {
+    const json = JSON.parse(raw.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
+    return (json.table.rows || []).map(row =>
+      (json.table.cols || []).map((col, i) => {
+        const cell = row.c[i];
+        if (!cell || cell.v === null) return '';
+        if (col.type === 'date' || col.type === 'datetime') {
+          const m = String(cell.v).match(/Date\((\d+),(\d+),(\d+)/);
+          if (m) { const d = new Date(+m[1],+m[2],+m[3]); return d.toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+        }
+        return String(cell.v);
+      })
+    );
+  } catch(e) { return []; }
+}
+</script>
+</body>
+</html>
